@@ -263,7 +263,7 @@ class MazePane {
             x: { min: 0, max: colsMax, step: 1 },
             y: { min: 0, max: rowsMax, step: 1 },
         }).on('change', (ev) => {
-            this.#mazeCanvas.updateStart([ev.value.x, ev.value.y]);
+            this.#mazeCanvas.updateStart({ x: ev.value.x, y: ev.value.y });
             this.#mazeCanvas.updatePathColor(this.#mazeCanvas.getPathType(), this.#mazeCanvas.getAStarType(), true);
         });
         this.#pStart.refresh();
@@ -278,7 +278,7 @@ class MazePane {
             x: { min: 0, max: colsMax, step: 1 },
             y: { min: 0, max: rowsMax, step: 1 },
         }).on('change', (ev) => {
-            this.#mazeCanvas.updateGoal([ev.value.x, ev.value.y]);
+            this.#mazeCanvas.updateGoal({ x: ev.value.x, y: ev.value.y });
             this.#mazeCanvas.updatePathColor(this.#mazeCanvas.getPathType(), this.#mazeCanvas.getAStarType(), true);
         });
         this.#pGoal.refresh();

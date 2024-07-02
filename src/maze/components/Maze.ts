@@ -7,7 +7,7 @@ import { MinQueue } from "heapify";
 class Maze {
     #rows = 0; #cols = 0; #length = 0;
     #start1D = 0; #goal1D = 0;
-    #start2D = [0, 0]; #goal2D = [0, 0];
+    #start2D = { x: 0, y: 0 }; #goal2D = { x: 0, y: 0 };
     #cells = new Int8Array(0);
 
     constructor(rows: number, cols: number) {
@@ -21,8 +21,8 @@ class Maze {
         // console.debug(`M [${rows},${cols}]: resizing cells`);
         this.#rows = rows, this.#cols = cols, this.#length = rows * cols;
 
-        this.setStart([0, 0]);
-        this.setGoal([cols - 1, rows - 1]);
+        this.setStart({ x: 0, y: 0 });
+        this.setGoal({ x: cols - 1, y: rows - 1 });
     }
     getCells() { return structuredClone(this.#cells); }
     generate() { // Wilson's algorithm inspired by Mike Bostock => https://gist.github.com/mbostock/6ba3a15c9f08742b3a80
@@ -100,27 +100,23 @@ class Maze {
         }
     }
     getStart() { return this.#start2D; }
-    setStart(cell: Array<number>) {
-        if (cell[0] < 0 || cell[1] < 0 || cell[0] >= this.#cols || cell[1] >= this.#rows) {
+    setStart(cell: { x: number, y: number }) {
+        if (cell.x < 0 || cell.y < 0 || cell.x >= this.#cols || cell.y >= this.#rows) {
             throw new Error(`Invalid start (${cell}): start coordinates must be inside the dimension of the maze`);
-        } else if (cell.length !== 2) {
-            throw new Error(`Start needs to be of length 2! ${cell}`);
         }
         // console.debug(`M [${cell}]: setting start`);
-        this.#start2D = cell, this.#start1D = this.#index1D(cell[0], cell[1]);
+        this.#start2D = cell, this.#start1D = this.#index1D(cell.x, cell.y);
     }
     getGoal() { return this.#goal2D; }
-    setGoal(cell: Array<number>) {
+    setGoal(cell: { x: number, y: number }) {
         // console.debug(`M [${cell}]: setting goal`);
-        if (cell[0] < 0 || cell[1] < 0 || cell[0] >= this.#cols || cell[1] >= this.#rows) {
+        if (cell.x < 0 || cell.y < 0 || cell.x >= this.#cols || cell.y >= this.#rows) {
             throw new Error(`Invalid goal (${cell}): goal coordinates must be inside the dimension of the maze`);
-        } else if (cell.length !== 2) {
-            throw new Error(`Goal needs to be of length 2! ${cell}`);
         }
-        this.#goal2D = cell, this.#goal1D = this.#index1D(cell[0], cell[1]);
+        this.#goal2D = cell, this.#goal1D = this.#index1D(cell.x, cell.y);
     }
     #index1D(x: number, y: number) { return y * this.#cols + x; }
-    #index2D(cell: number) { return [cell % this.#cols, cell / this.#cols | 0]; }
+    #index2D(cell: number) { return {x: cell % this.#cols, y: cell / this.#cols | 0}; }
     #backtrack_path(parents: { [key: number]: number }): { [key: number]: number } {
         const path = [];
         let curr = this.#goal1D;
@@ -211,15 +207,15 @@ class Maze {
             throw new Error(`Invalid type (${type}): type must be an integer from 0 to ${costs.length}`);
         }
         function updatePath(curr: number, neighbor: number) {
-            const [x0, y0] = index2D(curr);
-            const [x1, y1] = index2D(neighbor);
-            const tentative_gScore = gScore[curr] + cost(x0, y0, x1, y1);
+            const curr2D = index2D(curr);
+            const neighbor2D = index2D(neighbor);
+            const tentative_gScore = gScore[curr] + cost(curr2D.x, curr2D.y, neighbor2D.x, neighbor2D.y);
 
             if (tentative_gScore < gScore[neighbor]) {
                 parents[neighbor] = curr;
                 depths[neighbor] = depths[curr] + 1;
                 gScore[neighbor] = tentative_gScore;
-                fScore[neighbor] = tentative_gScore + cost(x1, y1, endx, endy);
+                fScore[neighbor] = tentative_gScore + cost(neighbor2D.x, neighbor2D.y, goal2D.x, goal2D.y);
                 if (!visited.has(neighbor)) {
                     visited.add(neighbor);
                     queue.push(neighbor, fScore[neighbor]);
@@ -232,9 +228,9 @@ class Maze {
         const depths: { [key: number]: number } = {};
 
         for (let i = 0; i < this.#length; ++i) gScore[i] = Infinity, fScore[i] = Infinity;
-        const [endx, endy] = this.#goal2D;
+        const goal2D = this.#goal2D;
 
-        gScore[this.#start1D] = 0, fScore[this.#start1D] = cost(this.#start2D[0], this.#start2D[1], this.#goal2D[0], this.#goal2D[1]);
+        gScore[this.#start1D] = 0, fScore[this.#start1D] = cost(this.#start2D.x, this.#start2D.y, this.#goal2D.x, this.#goal2D.y);
         queue.push(this.#start1D, fScore[this.#start1D]);
         visited.add(this.#start1D);
         depths[this.#start1D] = 0;

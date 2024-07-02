@@ -15,7 +15,7 @@ class MazeCanvas {
     #rows = 0; #cols = 0;
     #cellSize = 0; #wallWidth = 0;
     #tileSize = 0; #tileChunk = 0;
-    #start2D: Array<number> = []; #goal2D: Array<number> = [];
+    #start2D = { x: 0, y: 0 }; #goal2D = { x: 0, y: 0 };
     #totalWalls = 0;
 
     #cells: Int8Array = new Int8Array(0);
@@ -49,16 +49,17 @@ class MazeCanvas {
     #pathColor = CONFIG.pathColor.value;
 
     #pathWidth = 0;
-    #radiiCorner = 10000;
 
-    private centerOffset = { x: 0, y: 0 }
+    #centerOffset = { x: 0, y: 0 };
+    #action = "none";
 
-    private panOffset = { x: 0, y: 0 };
-    private startPanMouse = { x: 0, y: 0 };
-    private action = "none";
+    #panOffset = { x: 0, y: 0 };
+    #startPanMouse = { x: 0, y: 0 };
 
-    private scale = 1;
-    private scaleOffset = { x: 0, y: 0 };
+    #scale = 1;
+    #scaleOffset = { x: 0, y: 0 };
+
+    // #playerPosition = { x: 0, y: 0 };
 
     constructor(rows: number, cols: number, cellSize: number, wallWidth: number) {
         this.#canvases = {
@@ -77,7 +78,7 @@ class MazeCanvas {
         this.#maze = new Maze(rows, cols);
         this.newCanvas(rows, cols, cellSize, wallWidth);
 
-        const borderCanvas = this.#canvases['bord'];
+        const borderCanvas = this.#canvases.bord;
         borderCanvas.addEventListener("mousedown", this.#handleMouseDown);
         borderCanvas.addEventListener("mouseup", this.#handleMouseUp);
         borderCanvas.addEventListener("mousemove", this.#handleMouseMove);
@@ -97,6 +98,8 @@ class MazeCanvas {
         this.#start2D = this.#maze.getStart(), this.#goal2D = this.#maze.getGoal();
         this.#cells = this.#maze.generate();
 
+        // this.#playerPosition = structuredClone(this.#start2D);
+
         this.#tileSize = this.#cellSize + this.#wallWidth;
         this.#tileChunk = this.#tileSize + this.#wallWidth;
         this.#totalWalls = this.#calcTotalWalls();
@@ -113,11 +116,11 @@ class MazeCanvas {
         });
 
         if (!doTransformation) {
-            this.centerOffset = { x: (window.innerWidth / 2) - (this.#canvasWidth / 2) | 0, y: (window.innerHeight / 2) - (this.#canvasHeight / 2) | 0 }
-            this.panOffset = { x: 0, y: 0 };
-            this.startPanMouse = { x: 0, y: 0 };
-            this.scale = 1;
-            this.scaleOffset = { x: 0, y: 0 };
+            this.#centerOffset = { x: (window.innerWidth / 2) - (this.#canvasWidth / 2) | 0, y: (window.innerHeight / 2) - (this.#canvasHeight / 2) | 0 }
+            this.#panOffset = { x: 0, y: 0 };
+            this.#startPanMouse = { x: 0, y: 0 };
+            this.#scale = 1;
+            this.#scaleOffset = { x: 0, y: 0 };
         }
 
         this.#start = this.#bufferStart();
@@ -144,42 +147,42 @@ class MazeCanvas {
     #handleMouseDown = (event: MouseEvent) => {
         const { clientX, clientY } = this.#getMouseCoords(event);
         if (event.button === 0) {
-            this.action = "panning";
-            this.startPanMouse = { x: clientX, y: clientY };
+            this.#action = "panning";
+            this.#startPanMouse = { x: clientX, y: clientY };
         }
     }
 
     #handleMouseMove = (event: MouseEvent) => {
-        if (this.action === "panning") {
+        if (this.#action === "panning") {
             const { clientX, clientY } = this.#getMouseCoords(event);
-            const { x, y } = this.panOffset;
-            this.panOffset.x += clientX - this.startPanMouse.x;
-            this.panOffset.y += clientY - this.startPanMouse.y;
-            requestAnimationFrame(() => this.#render(this.centerOffset.x + x * this.scale - this.scaleOffset.x, this.centerOffset.y + y * this.scale - this.scaleOffset.y, this.scale));
+            const { x, y } = this.#panOffset;
+            this.#panOffset.x += clientX - this.#startPanMouse.x;
+            this.#panOffset.y += clientY - this.#startPanMouse.y;
+            requestAnimationFrame(() => this.#render(this.#centerOffset.x + x * this.#scale - this.#scaleOffset.x, this.#centerOffset.y + y * this.#scale - this.#scaleOffset.y, this.#scale));
         }
     }
 
     #handleMouseUp = () => {
-        this.action = "none";
+        this.#action = "none";
     }
 
     #getMouseCoords = (event: MouseEvent) => {
-        const clientX = (event.clientX - this.centerOffset.x - this.panOffset.x * this.scale - this.scaleOffset.x) / this.scale | 0;
-        const clientY = (event.clientY - this.centerOffset.y - this.panOffset.y * this.scale - this.scaleOffset.y) / this.scale | 0;
+        const clientX = (event.clientX - this.#centerOffset.x - this.#panOffset.x * this.#scale - this.#scaleOffset.x) / this.#scale | 0;
+        const clientY = (event.clientY - this.#centerOffset.y - this.#panOffset.y * this.#scale - this.#scaleOffset.y) / this.#scale | 0;
         return { clientX, clientY };
     }
 
     #handleScroll = (event: WheelEvent) => {
-        const { x, y } = this.scaleOffset;
-        const scale = this.scale;
-        this.scale = Math.min(Math.max(this.scale + -Math.sign(event.deltaY), 1), 20);
-        this.scaleOffset = (
+        const { x, y } = this.#scaleOffset;
+        const scale = this.#scale;
+        this.#scale = Math.min(Math.max(scale + -Math.sign(event.deltaY), 1), 20);
+        this.#scaleOffset = (
             {
-                x: (this.#canvasWidth * this.scale - this.#canvasWidth) / 2 | 0,
-                y: (this.#canvasHeight * this.scale - this.#canvasHeight) / 2 | 0
+                x: (this.#canvasWidth * this.#scale - this.#canvasWidth) / 2 | 0,
+                y: (this.#canvasHeight * this.#scale - this.#canvasHeight) / 2 | 0
             }
         )
-        requestAnimationFrame(() => this.#render(this.centerOffset.x + this.panOffset.x * scale - x, this.centerOffset.y + this.panOffset.y * scale - y, scale));
+        requestAnimationFrame(() => this.#render(this.#centerOffset.x + this.#panOffset.x * scale - x, this.#centerOffset.y + this.#panOffset.y * scale - y, scale));
     }
 
     #nWall(ctx: OffscreenCanvasRenderingContext2D, x: number, y: number) { ctx.fillRect(x * this.#tileSize, y * this.#tileSize, this.#tileChunk, this.#wallWidth); }
@@ -206,22 +209,21 @@ class MazeCanvas {
         const ctx = canvas.getContext('2d')!;
         ctx.beginPath();
         ctx.fillStyle = this.#borderColor;
-        ctx.roundRect(0, 0, this.#canvasWidth, this.#wallWidth, this.#radiiCorner);
-        ctx.roundRect(0, 0, this.#wallWidth, this.#canvasHeight, this.#radiiCorner);
-        ctx.roundRect(0, this.#rows * this.#tileSize, this.#canvasWidth, this.#wallWidth, this.#radiiCorner);
-        ctx.roundRect(this.#cols * this.#tileSize, 0, this.#wallWidth, this.#canvasHeight, this.#radiiCorner);
-        ctx.fill();
+        ctx.fillRect(0, 0, this.#canvasWidth, this.#wallWidth);
+        ctx.fillRect(0, 0, this.#wallWidth, this.#canvasHeight);
+        ctx.fillRect(0, this.#rows * this.#tileSize, this.#canvasWidth, this.#wallWidth);
+        ctx.fillRect(this.#cols * this.#tileSize, 0, this.#wallWidth, this.#canvasHeight);
         return canvas;
     }
 
     #bufferStart() {
-        const canvas = new OffscreenCanvas(this.#canvasWidth, this.#canvasHeight);
+        const canvas = new OffscreenCanvas(this.#cellSize, this.#cellSize);
         const ctx = canvas.getContext('2d')!;
         ctx.beginPath();
         ctx.fillStyle = this.#startColor;
         ctx.fillRect(
-            this.#start2D[0] * this.#tileSize + this.#wallWidth,
-            this.#start2D[1] * this.#tileSize + this.#wallWidth,
+            0,
+            0,
             this.#cellSize,
             this.#cellSize
         );
@@ -229,13 +231,13 @@ class MazeCanvas {
     }
 
     #bufferGoal() {
-        const canvas = new OffscreenCanvas(this.#canvasWidth, this.#canvasHeight);
+        const canvas = new OffscreenCanvas(this.#cellSize, this.#cellSize);
         const ctx = canvas.getContext('2d')!;
         ctx.beginPath();
         ctx.fillStyle = this.#goalColor;
         ctx.fillRect(
-            this.#goal2D[0] * this.#tileSize + this.#wallWidth,
-            this.#goal2D[1] * this.#tileSize + this.#wallWidth,
+            0,
+            0,
             this.#cellSize,
             this.#cellSize
         );
@@ -251,10 +253,10 @@ class MazeCanvas {
         const m = (this.#wallWidth + this.#tileSize) / 2 | 0;
         const length = Object.keys(path).length;
         for (let i = 0; i < length; ++i) {
-            const [x, y] = this.#index2D(path[i]);
+            const cell2D = this.#index2D(path[i]);
             ctx.lineTo(
-                x * this.#tileSize + m,
-                y * this.#tileSize + m
+                cell2D.x * this.#tileSize + m,
+                cell2D.y * this.#tileSize + m
             );
         }
         ctx.stroke();
@@ -272,11 +274,11 @@ class MazeCanvas {
         const maxVal = depthsEntry.reduce((a, b) => a[1] > b[1] ? a : b)[1];
         Object.keys(depths).forEach(id => {
             const _id = parseInt(id)
-            const [x, y] = this.#index2D(_id);
+            const cell2D = this.#index2D(_id);
             ctx.fillStyle = getColor(depths[_id], maxVal);
             ctx.fillRect(
-                x * this.#tileSize + this.#wallWidth,
-                y * this.#tileSize + this.#wallWidth,
+                cell2D.x * this.#tileSize + this.#wallWidth,
+                cell2D.y * this.#tileSize + this.#wallWidth,
                 this.#cellSize,
                 this.#cellSize
             );
@@ -284,89 +286,88 @@ class MazeCanvas {
         return canvas;
     }
 
-    #render(prevX = this.centerOffset.x + this.panOffset.x * this.scale - this.scaleOffset.x,
-        prevY = this.centerOffset.y + this.panOffset.y * this.scale - this.scaleOffset.y,
-        scale = this.scale) {
+    #render(prevX = this.#centerOffset.x + this.#panOffset.x * this.#scale - this.#scaleOffset.x,
+        prevY = this.#centerOffset.y + this.#panOffset.y * this.#scale - this.#scaleOffset.y,
+        scale = this.#scale) {
         Object.values(this.#contexts).forEach(ctx => {
             this.#clearCanvas(ctx, prevX, prevY, scale);
         });
         this.#renderWalls(this.#walls);
         this.#renderBorder(this.#border);
-        this.#renderStartGoal(this.#start, this.#goal);
+        this.#renderStart(this.#start);
+        this.#renderGoal(this.#goal);
         this.updatePathColor(this.#pathType, this.#aStarType);
     }
 
     #renderWalls(currWalls: OffscreenCanvas) {
         // console.debug("C: drawing walls");
-        const ctx = this.#contexts['maze'];
-        ctx.drawImage(
+        this.#contexts.maze.drawImage(
             currWalls,
-            this.centerOffset.x + this.panOffset.x * this.scale - this.scaleOffset.x,
-            this.centerOffset.y + this.panOffset.y * this.scale - this.scaleOffset.y,
-            this.scale * this.#canvasWidth,
-            this.scale * this.#canvasHeight
+            this.#centerOffset.x + this.#panOffset.x * this.#scale - this.#scaleOffset.x,
+            this.#centerOffset.y + this.#panOffset.y * this.#scale - this.#scaleOffset.y,
+            this.#scale * this.#canvasWidth,
+            this.#scale * this.#canvasHeight
         );
     }
 
     #renderBorder(currBorder: OffscreenCanvas) {
         // console.debug("C: draw border");
-        const ctx = this.#contexts['bord'];
-        ctx.drawImage(
+        this.#contexts.bord.drawImage(
             currBorder,
-            this.centerOffset.x + this.panOffset.x * this.scale - this.scaleOffset.x,
-            this.centerOffset.y + this.panOffset.y * this.scale - this.scaleOffset.y,
-            this.scale * this.#canvasWidth,
-            this.scale * this.#canvasHeight
+            this.#centerOffset.x + this.#panOffset.x * this.#scale - this.#scaleOffset.x,
+            this.#centerOffset.y + this.#panOffset.y * this.#scale - this.#scaleOffset.y,
+            this.#scale * this.#canvasWidth,
+            this.#scale * this.#canvasHeight
         );
     }
 
-    #renderStartGoal(top: OffscreenCanvas, bottom: OffscreenCanvas) {
+    #renderStart(start: OffscreenCanvas) {
         // console.debug("C: draw start and goal");
-        const ctx = this.#contexts['wayp'];
-        ctx.drawImage(
-            bottom,
-            this.centerOffset.x + this.panOffset.x * this.scale - this.scaleOffset.x,
-            this.centerOffset.y + this.panOffset.y * this.scale - this.scaleOffset.y,
-            this.scale * this.#canvasWidth,
-            this.scale * this.#canvasHeight
+        this.#contexts.wayp.drawImage(
+            start,
+            (this.#start2D.x * this.#tileSize + this.#wallWidth + this.#panOffset.x) * this.#scale + this.#centerOffset.x - this.#scaleOffset.x,
+            (this.#start2D.y * this.#tileSize + this.#wallWidth + this.#panOffset.y) * this.#scale + this.#centerOffset.y - this.#scaleOffset.y,
+            this.#scale * this.#cellSize,
+            this.#scale * this.#cellSize
         );
-        ctx.drawImage(
-            top,
-            this.centerOffset.x + this.panOffset.x * this.scale - this.scaleOffset.x,
-            this.centerOffset.y + this.panOffset.y * this.scale - this.scaleOffset.y,
-            this.scale * this.#canvasWidth,
-            this.scale * this.#canvasHeight
+    }
+
+    #renderGoal(goal: OffscreenCanvas) {
+        this.#contexts.wayp.drawImage(
+            goal,
+            (this.#goal2D.x * this.#tileSize + this.#wallWidth + this.#panOffset.x) * this.#scale + this.#centerOffset.x - this.#scaleOffset.x,
+            (this.#goal2D.y * this.#tileSize + this.#wallWidth + this.#panOffset.y) * this.#scale + this.#centerOffset.y - this.#scaleOffset.y,
+            this.#scale * this.#cellSize,
+            this.#scale * this.#cellSize
         );
     }
 
     #renderPath(currPath: OffscreenCanvas) {
         // console.debug("C: render path");
-        const ctx = this.#contexts['path'];
-        ctx.drawImage(
+        this.#contexts.path.drawImage(
             currPath,
-            this.centerOffset.x + this.panOffset.x * this.scale - this.scaleOffset.x,
-            this.centerOffset.y + this.panOffset.y * this.scale - this.scaleOffset.y,
-            this.scale * this.#canvasWidth,
-            this.scale * this.#canvasHeight
+            this.#centerOffset.x + this.#panOffset.x * this.#scale - this.#scaleOffset.x,
+            this.#centerOffset.y + this.#panOffset.y * this.#scale - this.#scaleOffset.y,
+            this.#scale * this.#canvasWidth,
+            this.#scale * this.#canvasHeight
         );
     }
 
     #renderColorMap(currColorMap: OffscreenCanvas) {
         // console.debug("C: render color map");
-        const ctx = this.#contexts['colr'];
-        ctx.drawImage(
+        this.#contexts.colr.drawImage(
             currColorMap,
-            this.centerOffset.x + this.panOffset.x * this.scale - this.scaleOffset.x,
-            this.centerOffset.y + this.panOffset.y * this.scale - this.scaleOffset.y,
-            this.scale * this.#canvasWidth,
-            this.scale * this.#canvasHeight
+            this.#centerOffset.x + this.#panOffset.x * this.#scale - this.#scaleOffset.x,
+            this.#centerOffset.y + this.#panOffset.y * this.#scale - this.#scaleOffset.y,
+            this.#scale * this.#canvasWidth,
+            this.#scale * this.#canvasHeight
         );
     }
 
     #clearBorder(ctx: CanvasRenderingContext2D,
-        offsetX = this.centerOffset.x + this.panOffset.x * this.scale - this.scaleOffset.x,
-        offsetY = this.centerOffset.y + this.panOffset.y * this.scale - this.scaleOffset.y,
-        scale = this.scale) {
+        offsetX = this.#centerOffset.x + this.#panOffset.x * this.#scale - this.#scaleOffset.x,
+        offsetY = this.#centerOffset.y + this.#panOffset.y * this.#scale - this.#scaleOffset.y,
+        scale = this.#scale) {
         ctx.clearRect(offsetX, offsetY, this.#canvasWidth * scale, this.#wallWidth * scale);
         ctx.clearRect(offsetX, offsetY, this.#wallWidth * scale, this.#canvasHeight * scale);
         ctx.clearRect(offsetX, this.#rows * this.#tileSize + offsetY, this.#canvasWidth * scale, this.#wallWidth * scale);
@@ -374,33 +375,33 @@ class MazeCanvas {
     }
 
     #clearStart(ctx: CanvasRenderingContext2D,
-        offsetX = this.centerOffset.x + this.panOffset.x * this.scale - this.scaleOffset.x,
-        offsetY = this.centerOffset.y + this.panOffset.y * this.scale - this.scaleOffset.y,
-        scale = this.scale) {
+        offsetX = this.#centerOffset.x + this.#panOffset.x * this.#scale - this.#scaleOffset.x,
+        offsetY = this.#centerOffset.y + this.#panOffset.y * this.#scale - this.#scaleOffset.y,
+        scale = this.#scale) {
         ctx.clearRect(
-            (this.#start2D[0] * this.#tileSize + this.#wallWidth - 1) * this.scale + offsetX,
-            (this.#start2D[1] * this.#tileSize + this.#wallWidth - 1) * this.scale + offsetY,
-            (this.#cellSize + 2) * scale,
-            (this.#cellSize + 2) * scale
+            (this.#start2D.x * this.#tileSize + this.#wallWidth) * scale + offsetX,
+            (this.#start2D.y * this.#tileSize + this.#wallWidth) * scale + offsetY,
+            this.#cellSize * scale,
+            this.#cellSize * scale
         );
     }
 
     #clearGoal(ctx: CanvasRenderingContext2D,
-        offsetX = this.centerOffset.x + this.panOffset.x * this.scale - this.scaleOffset.x,
-        offsetY = this.centerOffset.y + this.panOffset.y * this.scale - this.scaleOffset.y,
-        scale = this.scale) {
+        offsetX = this.#centerOffset.x + this.#panOffset.x * this.#scale - this.#scaleOffset.x,
+        offsetY = this.#centerOffset.y + this.#panOffset.y * this.#scale - this.#scaleOffset.y,
+        scale = this.#scale) {
         ctx.clearRect(
-            (this.#goal2D[0] * this.#tileSize + this.#wallWidth - 1) * this.scale + offsetX,
-            (this.#goal2D[1] * this.#tileSize + this.#wallWidth - 1) * this.scale + offsetY,
-            (this.#cellSize + 2) * scale,
-            (this.#cellSize + 2) * scale
+            (this.#goal2D.x * this.#tileSize + this.#wallWidth) * scale + offsetX,
+            (this.#goal2D.y * this.#tileSize + this.#wallWidth) * scale + offsetY,
+            this.#cellSize * scale,
+            this.#cellSize * scale
         );
     }
 
     #clearCanvas(ctx: CanvasRenderingContext2D,
-        offsetX = this.centerOffset.x + this.panOffset.x * this.scale - this.scaleOffset.x,
-        offsetY = this.centerOffset.y + this.panOffset.y * this.scale - this.scaleOffset.y,
-        scale = this.scale) {
+        offsetX = this.#centerOffset.x + this.#panOffset.x * this.#scale - this.#scaleOffset.x,
+        offsetY = this.#centerOffset.y + this.#panOffset.y * this.#scale - this.#scaleOffset.y,
+        scale = this.#scale) {
         ctx.clearRect(
             offsetX,
             offsetY,
@@ -409,24 +410,30 @@ class MazeCanvas {
         );
     }
 
-    updateStart(start: Array<number>) {
+    updateStart(start: { x: number, y: number }) {
         // console.debug("C: updating start");
+        const sameWaypoint = this.#start2D.x === this.#goal2D.x && this.#start2D.y === this.#goal2D.y;
+        
         this.#maze.setStart(start);
-        const ctx = this.#contexts['wayp'];
-        this.#clearStart(ctx);
+        this.#clearStart(this.#contexts.wayp);
         this.#start2D = this.#maze.getStart();
-        this.#start = this.#bufferStart()
-        this.#renderStartGoal(this.#start, this.#goal);
+        this.#start = this.#bufferStart();
+        this.#renderStart(this.#start);
+        
+        if (sameWaypoint) this.#renderGoal(this.#goal);
     }
 
-    updateGoal(goal: Array<number>) {
+    updateGoal(goal: { x: number, y: number }) {
         // console.debug("C: updating goal");
+        const sameWaypoint = this.#start2D.x === this.#goal2D.x && this.#start2D.y === this.#goal2D.y;
+        
         this.#maze.setGoal(goal);
-        const ctx = this.#contexts['wayp'];
-        this.#clearGoal(ctx);
+        this.#clearGoal(this.#contexts.wayp);
         this.#goal2D = this.#maze.getGoal();
-        this.#goal = this.#bufferGoal()
-        this.#renderStartGoal(this.#goal, this.#start);
+        this.#goal = this.#bufferGoal();
+        this.#renderGoal(this.#goal);
+        
+        if (sameWaypoint) this.#renderStart(this.#start);
     }
 
     updatePathColor(pathType: string, aStarType: string, force: boolean = false) {
@@ -484,12 +491,12 @@ class MazeCanvas {
         }
 
         if (this.#doPath) {
-            this.#clearCanvas(this.#contexts['path']);
+            this.#clearCanvas(this.#contexts.path);
             this.#renderPath(path2D!);
         }
 
         if (this.#doColor) {
-            this.#clearCanvas(this.#contexts['colr']);
+            this.#clearCanvas(this.#contexts.colr);
             this.#renderColorMap(colorDepth!);
         }
     }
@@ -498,46 +505,44 @@ class MazeCanvas {
         if (color === this.#wallColor) return;
         // console.debug("C: update wall color");
         this.#wallColor = color;
-        const ctx = this.#contexts['maze'];
+        const ctx = this.#contexts.maze;
         this.#clearCanvas(ctx);
         this.#walls = this.#bufferWalls();
         this.#renderWalls(this.#walls);
-        this.#renderStartGoal(this.#start, this.#goal);
+        this.#renderStart(this.#start);
+        this.#renderGoal(this.#goal);
     }
 
     updateStartColor(color: string) {
         if (color === this.#startColor) return;
         // console.debug("C: update start color");
         this.#startColor = color;
-        const ctx = this.#contexts['wayp'];
-        this.#clearStart(ctx);
+        this.#clearStart(this.#contexts.wayp);
         this.#start = this.#bufferStart();
-        this.#renderStartGoal(this.#start, this.#goal);
+        this.#renderStart(this.#start);
     }
 
     updateGoalColor(color: string) {
         if (color === this.#goalColor) return;
         // console.debug("C: update goal color");
         this.#goalColor = color;
-        const ctx = this.#contexts['wayp'];
-        this.#clearGoal(ctx);
+        this.#clearGoal(this.#contexts.wayp);
         this.#goal = this.#bufferGoal();
-        this.#renderStartGoal(this.#goal, this.#start);
+        this.#renderGoal(this.#goal);
     }
 
     updateBorderColor(color: string) {
         if (color === this.#borderColor) return;
         // console.debug("C: update border color");
         this.#borderColor = color;
-        const ctx = this.#contexts['bord']
-        this.#clearBorder(ctx);
+        this.#clearBorder(this.#contexts.bord);
         this.#border = this.#bufferBorder();
         this.#renderBorder(this.#border);
     }
 
     #index1D(x: number, y: number) { return y * this.#cols + x; }
 
-    #index2D(cell: number) { return [cell % this.#cols, cell / this.#cols | 0]; }
+    #index2D(cell: number) { return {x: cell % this.#cols, y: cell / this.#cols | 0}; }
 
     #getRandomInt(min: number, max: number) { return Math.random() * (max - min) + min | 0; }
 
@@ -592,8 +597,8 @@ class MazeCanvas {
     //     this.#cells[up] ^= S;
     //     if (!((this.#cells[curr] ^= N) & N)) {
     //         ctx.clearRect(
-    //             x * this.#tileSize + this.panOffset.x,
-    //             y * this.#tileSize + this.panOffset.y,
+    //             x * this.#tileSize + this.#panOffset.x,
+    //             y * this.#tileSize + this.#panOffset.y,
     //             this.#tileChunk,
     //             this.#wallWidth
     //         );
@@ -610,8 +615,8 @@ class MazeCanvas {
     //     this.#cells[left] ^= E;
     //     if (!((this.#cells[curr] ^= W) & W)) {
     //         ctx.clearRect(
-    //             x * this.#tileSize + this.panOffset.x,
-    //             y * this.#tileSize + this.panOffset.y,
+    //             x * this.#tileSize + this.#panOffset.x,
+    //             y * this.#tileSize + this.#panOffset.y,
     //             this.#wallWidth,
     //             this.#tileChunk
     //         );
