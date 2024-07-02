@@ -76,9 +76,9 @@ class MazePane {
 
         this.#initPane();
         this.#rows = this.#PARAMS.rows; this.#cols = this.#PARAMS.cols;
+        this.#pBreakWall = this.#updateBreakWall(this.#mazeCanvas.getTotalWalls());
         this.#pStart = this.#updatePStart(this.#PARAMS.cols - 1, this.#PARAMS.rows - 1);
         this.#pGoal = this.#updatePGoal(this.#PARAMS.cols - 1, this.#PARAMS.rows - 1);
-        this.#pBreakWall = this.#updateBreakWall(this.#mazeCanvas.getTotalWalls());
     }
 
     #initPane() {

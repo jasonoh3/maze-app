@@ -1,8 +1,7 @@
 export const DEFAULT_ROWS = 30;
 export const DEFAULT_COLS = 30;
 export const MAX_MAZE_SIZE = 1000;
-export const HIGH_MAX_MAZE_SIZE = 3000;
-export const EXTREME_MAX_MAZE_SIZE = 7000;
+export const EXTREME_MAX_MAZE_SIZE = 2500;
 export const MAX_CELL_SIZE = 20;
 export const MAX_WALL_WIDTH = 5;
 
@@ -25,11 +24,11 @@ export const CONFIG: Config = {
         index: 1,
     },
     cellSize: {
-        value: 15,
+        value: 10,
         index: 2,
     },
     wallWidth: {
-        value: 3,
+        value: 2,
         index: 3,
     },
     genButton: {
